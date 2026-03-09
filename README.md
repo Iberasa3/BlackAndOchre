@@ -1,2 +1,2 @@
-Mañana tengo que terminar de colocar bien las coordenadas thinned en el mapa, aprender los datos sobre esas localizaciones y entrenar el random forest.
-Antes le dedicaré una hora a leer papers para ver cómo está el estado del arte en la materia
+
+<img width="1024" height="1024" alt="Logo avispas" src="https://github.com/user-attachments/assets/40f23d1b-5d21-4690-afea-0c198c66115b" />
