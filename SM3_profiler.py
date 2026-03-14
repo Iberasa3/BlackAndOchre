@@ -14,6 +14,7 @@ class SM3Profiler:
         self.gamma = gamma
         self.model = None
 
+
     def train_ocsvm(self, presence_points, environmental_stack):
         """
         Entrena el modelo OCSVM utilizando únicamente datos de presencia.
@@ -22,7 +23,7 @@ class SM3Profiler:
             collection=presence_points,
             scale=1000
         )
-        # Basado en la literatura de Senay et al. (2013)
+        # Nos basamos en la literatura de Senay et al. (2013)
         self.model = ee.Classifier.libsvm(
             svmType='ONE_CLASS',
             kernelType=self.kernel_type,
@@ -34,7 +35,7 @@ class SM3Profiler:
 
     def get_zero_similarity_mask(self, environmental_stack, aoi):
         """
-        Aplica el modelo y devuelve una máscara de las zonas hostiles (valor 0).
+        Aplicamos el modelo y devolvemos una máscara de las zonas hostiles (valor 0). Estas son las que nos interesan para meter las pseudoausencias
         """
         if not self.model:
             raise ValueError("El modelo debe ser entrenado antes de predecir.")
@@ -42,8 +43,7 @@ class SM3Profiler:
         # Clasificar el espacio ambiental
         similarity_map = environmental_stack.clip(aoi).classify(self.model)
 
-        # El paper SM4 sugiere que los puntos con probabilidad 0 son las ausencias ideales
-        # Invertimos: donde el mapa es 0, la máscara es 1 (permitido para pseudo-ausencias)
+        # Invertimos: donde el mapa es 0, la máscara es 1 permitido para pseudo-ausencias
         return similarity_map.eq(0).selfMask()
 
 
@@ -59,7 +59,7 @@ def generate_environmental_absences(presences, predictors, aoi, num_points, seed
     absences = mask.sample(
         region=aoi,
         scale=1000,
-        numPixels=num_points * 2,  # Sobremuestreo para el truncamiento
+        numPixels=num_points * 2,  # Sobremuestreo para el truncamiento, esto es posible que haya que cambiarlo.
         seed=seed,
         geometries=True
     ).limit(num_points)
