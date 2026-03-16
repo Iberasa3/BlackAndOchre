@@ -1,6 +1,7 @@
 import ee
 
-#De momento esta es una versión pre-alfa, no vale para nada y solo sirve como estructura básica para que pueda trabajarlo mañana
+#De momento esta es una versión pre-alfa, no vale para nada y solo sirve como estructura básica para el futuro
+#SM3 OCVM puede ser reutilizado para SM4
 
 class SM3Profiler:
     """
