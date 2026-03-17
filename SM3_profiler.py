@@ -1,7 +1,7 @@
 import ee
 
 #De momento esta es una versión pre-alfa, no vale para nada y solo sirve como estructura básica para el futuro
-#SM3 OCVM puede ser reutilizado para SM4
+#SM3 OCVM puede ser reutilizado para SM4.
 
 class SM3Profiler:
     """
@@ -47,7 +47,7 @@ class SM3Profiler:
         # Invertimos: donde el mapa es 0, la máscara es 1 permitido para pseudo-ausencias
         return similarity_map.eq(0).selfMask()
 
-
+#Fuera de la clase, luego chekiamos el SM3
 def generate_environmental_absences(presences, predictors, aoi, num_points, seed=67):
     """
     Función de utilidad para llamar desde el Notebook.
