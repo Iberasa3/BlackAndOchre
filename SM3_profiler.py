@@ -16,9 +16,10 @@ class SM3Profiler:
         self.model = None
 
 
+
     def train_ocsvm(self, presence_points, environmental_stack):
         """
-        Entrena el modelo OCSVM utilizando únicamente datos de presencia.
+        Entrena el modelo OCSVM utilizando únicamente datos de presencia (porque es one-class)
         """
         training_features = environmental_stack.sampleRegions(
             collection=presence_points,
@@ -29,10 +30,12 @@ class SM3Profiler:
             svmType='ONE_CLASS',
             kernelType=self.kernel_type,
             nu=self.nu,
-            gamma=self.gamma
+            gamma=self.gamma #Esto al terminar de estudiar mañana tenemos que chekiar si el gamma 0,5 de la constructora está bien enfocada
         ).train(training_features, 'class', environmental_stack.bandNames())
 
         return self.model
+
+
 
     def get_zero_similarity_mask(self, environmental_stack, aoi):
         """
