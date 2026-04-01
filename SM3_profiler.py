@@ -3,67 +3,66 @@ import ee
 
 class SM3Profiler:
     """
-    Clase para implementar el Paso 2 del SM4 y el SM3 en su completitud
-    Utiliza One-Class SVM para identificar zonas de 'similitud cero' respecto a las presencias
+    Implementación de la estrategia SM3 (Environmental Pseudo-absence Selection).
+    Utiliza One-Class SVM (OCSVM) para definir el hipervolumen del nicho ecológico
+    y generar una máscara de 'similitud cero' con la que luego podremos generar las pseudoausencias.
     """
 
     def __init__(self, nu=0.1, gamma='auto'):
-        self.nu = nu  # Outlier fraction (standard 0.1 for invasive species)
+        """
+        nu: Fracción aproximada de outliers (puntos de presencia que el modelo
+            considerará fuera del nicho). Un valor de 0.1 (10%) suele ser estándar según los papers que he leído.
+
+        gamma: Parámetro de ancho del kernel RBF. 'auto' usa 1/n_features. Chequiar esto
+        """
+        self.nu = nu
         self.gamma = gamma
         self.trained_model = None
 
-    def train_ocsvm(self, presence_fc, predictor_stack):
+    def train_ocsvm(self, presence_fc, predictor_stack, scale=1000):
         """
-        Trains the OCSVM using presence data.
+        Entrena el OCSVM basándose únicamente en los datos de presencia.
         """
-        # Sample predictors at presence locations
+        # Extraemos los valores de las variables en los puntos de presencia
         training_samples = predictor_stack.sampleRegions(
             collection=presence_fc,
             properties=['class'],
-            scale=1000,
+            scale=scale,
             tileScale=16
         )
 
-        # Train LIBSVM in ONE_CLASS mode. We set oneClass=1 because your gynes are labeled as 1.
+        # Configuramos el clasificador LIBSVM en modo ONE_CLASS
+        # El parámetro 'oneClass' indica qué etiqueta representa la clase de interés
         self.trained_model = ee.Classifier.libsvm(
             svmType='ONE_CLASS',
             kernelType='RBF',
             nu=self.nu,
             gamma=None if self.gamma == 'auto' else self.gamma,
             oneClass=1
-        ).train(training_samples, 'class', predictor_stack.bandNames())
+        ).train(
+            features=training_samples,
+            classProperty='class',
+            inputProperties=predictor_stack.bandNames()
+        )
 
+        print("OCSVM Profiler entrenado con éxito.")
         return self.trained_model
 
     def get_zero_similarity_mask(self, predictor_stack, aoi):
         """
-        Returns a mask where 1 represents zones with zero similarity to presences.
+        Genera una máscara binaria donde:
+        1 = Áreas de 'similitud cero' (ecológicamente muy distintas).
+        0 = Áreas dentro del nicho o similares.
         """
         if not self.trained_model:
-            raise Exception("Model not trained.")
+            raise Exception("El modelo debe ser entrenado antes de generar la máscara.")
 
-        # Classify the AOI. 1 = Similarity, 0 = Zero Similarity (Outliers)
-        similarity_map = predictor_stack.clip(aoi).classify(self.trained_model)
+        # Clasificamos el stack de variables
+        # En ONE_CLASS, los outliers (zonas distintas) suelen recibir clase 0 o -1
+        # y los valores dentro del nicho reciben clase 1.
+        prediction = predictor_stack.clip(aoi).classify(self.trained_model)
 
-        # We isolate the '0' values as they represent environmentally hostile areas
-        return similarity_map.eq(0).selfMask()
-
-
-def generate_environmental_absences(presences, predictors, aoi, num_points, seed=67):
-    """
-    Función de utilidad para llamar desde el Notebook.
-    """
-    profiler = SM3Profiler()
-    profiler.train_ocsvm(presences, predictors)
-    mask = profiler.get_zero_similarity_mask(predictors, aoi)
-
-    # Muestreo final de los 'ceros' inteligentes
-    absences = mask.sample(
-        region=aoi,
-        scale=1000,
-        numPixels=num_points * 2,  # Sobremuestreo para el truncamiento, esto es posible que haya que cambiarlo.
-        seed=seed,
-        geometries=True
-    ).limit(num_points)
-
-    return absences.map(lambda f: f.set('class', 0))
+        # Creamos la máscara, nos interesan solo las zonas que NO se parecen al nicho (0)
+        zero_similarity_mask = prediction.eq(0)
+        # selfMask() elimina los 0s geográficos para que la máscara sea solo el área apta para SM3
+        return zero_similarity_mask.selfMask()
