@@ -11,7 +11,7 @@ class SM3Profiler:
     def __init__(self, nu=0.1, gamma='auto'):
         """
         nu: Fracción aproximada de outliers (puntos de presencia que el modelo
-            considerará fuera del nicho). Un valor de 0.1 (10%) suele ser estándar según los papers que he leído.
+            considerará fuera del nicho). Un valor de 0.1 (10%) suele ser estándar según los papers que he leído para evitar el overfitting.
 
         gamma: Parámetro de ancho del kernel RBF. 'auto' usa 1/n_features. Chequiar esto
         """
@@ -19,11 +19,26 @@ class SM3Profiler:
         self.gamma = gamma
         self.trained_model = None
 
+
+
+
     def train_ocsvm(self, presence_fc, predictor_stack, scale=1000):
         """
         Entrena el OCSVM basándose únicamente en los datos de presencia.
+
+        input:
+            - presence_fc (ee.FeatureCollection): Conjunto de puntos de presencia
+              (nidos/avistamientos) que deben contener una propiedad 'class' con valor 1.
+            - predictor_stack (ee.Image): Stack multibanda con las variables ambientales
+              (Golden Subset) que definen el espacio ecológico.
+            - scale (int): Resolución espacial en metros para la extracción de datos
+              (por defecto 1000m).
+
+        output:
+            - self.trained_model (ee.Classifier): Clasificador LIBSVM configurado y
+              entrenado en modo ONE_CLASS, capaz de distinguir el nicho de los outliers.
         """
-        # Extraemos los valores de las variables en los puntos de presencia
+
         training_samples = predictor_stack.sampleRegions(
             collection=presence_fc,
             properties=['class'],
@@ -48,12 +63,25 @@ class SM3Profiler:
         print("OCSVM Profiler entrenado con éxito.")
         return self.trained_model
 
+
+
+
     def get_zero_similarity_mask(self, predictor_stack, aoi):
         """
-        Genera una máscara binaria donde:
-        1 = Áreas de 'similitud cero' (ecológicamente muy distintas).
-        0 = Áreas dentro del nicho o similares.
-        """
+                Genera una máscara binaria de las zonas ambientalmente disimilares al nicho conocido.
+
+                input:
+                    - predictor_stack (ee.Image): El stack de variables ambientales (las mismas
+                      usadas en el entrenamiento) que se clasificará para encontrar outliers.
+                    - aoi (ee.Geometry): El área de interés (SM1_aoi) sobre la cual se proyectará
+                      el modelo para identificar las zonas de pseudoausencia.
+
+                output:
+                    - zero_similarity_mask (ee.Image): Imagen binaria donde los píxeles con valor 1
+                      representan las áreas de 'Similitud Cero' (outliers ambientales). Las áreas
+                      similares al nicho quedan enmascaradas (transparentes/sin datos).
+                """
+
         if not self.trained_model:
             raise Exception("El modelo debe ser entrenado antes de generar la máscara.")
 
